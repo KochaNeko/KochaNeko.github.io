@@ -27,6 +27,7 @@
     <div class="result">
         <p>緯度：<strong id="latitude">-</strong></p>
         <p>幅：<strong id="width">-</strong> cm</p>
+        <p>幅 / 2：<strong id="halfWidth">-</strong> cm</p>
     </div>
 
     <h2>高さと緯度・幅の対応表</h2>
@@ -90,7 +91,8 @@
             const width = widthFromLatitude(phi);
 
             document.getElementById("latitude").textContent = latitude.toFixed(4) + "°";
-            document.getElementById("width").textContent = width.toFixed(4);
+            document.getElementById("width").textContent = width.toFixed(2);
+            document.getElementById("halfWidth").textContent = (width / 2).toFixed(2);
         }
 
         function createTable() {
