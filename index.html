@@ -36,6 +36,7 @@
                 <th>高さ (cm)</th>
                 <th>緯度 (°)</th>
                 <th>幅 (cm)</th>
+                <th>幅 / 2 (cm)</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -101,13 +102,13 @@
                 const width = widthFromLatitude(phi);
                 const tr = document.createElement("tr");
 
-                tr.innerHTML = `<td>${height.toFixed(1)}</td><td>${latitude.toFixed(4)}°</td><td>${width.toFixed(4)}</td>`;
+                tr.innerHTML = `<td>${height.toFixed(1)}</td><td>${latitude.toFixed(4)}°</td><td>${width.toFixed(2)}</td><td>${(width / 2).toFixed(2)}</td>`;
                 tbody.appendChild(tr);
             }
 
             const phi = Math.PI / 2;
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${MAX_HEIGHT.toFixed(4)}</td><td>90.0000°</td><td>${widthFromLatitude(phi).toFixed(4)}</td>`;
+            tr.innerHTML = `<td>${MAX_HEIGHT.toFixed(4)}</td><td>90.0000°</td><td>${widthFromLatitude(phi).toFixed(2)}</td><td>${(widthFromLatitude(phi) / 2).toFixed(2)}</td>`;
             tbody.appendChild(tr);
         }
 
