@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -70,7 +70,7 @@ button:disabled {
 }
 
 main {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 30px auto;
     padding: 0 20px;
 }
@@ -140,6 +140,12 @@ main {
     font-size: 13px;
 }
 
+.gap {
+    margin-top: 8px;
+    color: #1976d2;
+    font-weight: bold;
+}
+
 .error {
     background: #ffebee;
     color: #b71c1c;
@@ -154,6 +160,24 @@ main {
     color: #666;
 }
 
+.chart-container {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px #00000012;
+}
+
+.chart-container h2 {
+    margin-top: 0;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 500px;
+}
+
 @media (max-width: 700px) {
     .video {
         grid-template-columns: 1fr;
@@ -162,6 +186,10 @@ main {
     #apiKey,
     #channelId {
         width: 100%;
+    }
+
+    .chart-wrapper {
+        height: 400px;
     }
 }
 </style>
@@ -173,6 +201,7 @@ main {
     <h1>YouTube 動画統計</h1>
 
     <div class="settings">
+
         <input
             id="apiKey"
             type="password"
@@ -183,31 +212,49 @@ main {
             type="text"
             placeholder="チャンネルID（UC...）">
 
-        <button id="loadButton" onclick="loadChannel()">
+        <button
+            id="loadButton"
+            onclick="loadChannel()">
             読み込み
         </button>
+
     </div>
 </header>
 
 <main>
+
     <div id="result"></div>
+
 </main>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
-const API_BASE = "https://www.googleapis.com/youtube/v3";
+const API_BASE =
+    "https://www.googleapis.com/youtube/v3";
+
+let videos = [];
+let subscriberCount = 0;
 
 async function apiRequest(endpoint, params) {
-    const query = new URLSearchParams(params);
+
+    const query =
+        new URLSearchParams(params);
 
     const response =
-        await fetch(`${API_BASE}/${endpoint}?${query}`);
+        await fetch(
+            `${API_BASE}/${endpoint}?${query}`
+        );
 
-    const data = await response.json();
+    const data =
+        await response.json();
 
     if (!response.ok) {
         throw new Error(
-            data.error?.message || "APIリクエストに失敗した"
+            data.error?.message ||
+            "APIリクエストに失敗した"
         );
     }
 
@@ -215,175 +262,64 @@ async function apiRequest(endpoint, params) {
 }
 
 function formatNumber(value) {
-    return Number(value).toLocaleString("ja-JP");
+
+    return Number(value)
+        .toLocaleString("ja-JP");
 }
 
 function formatDate(dateString) {
-    const date = new Date(dateString);
 
-    return date.toLocaleDateString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit"
-    });
+    const date =
+        new Date(dateString);
+
+    return date.toLocaleDateString(
+        "ja-JP",
+        {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }
+    );
 }
 
-function daysSince(dateString) {
-    const published = new Date(dateString);
-    const now = new Date();
+function daysBetween(date1, date2) {
 
-    const diff =
-        now.getTime() - published.getTime();
+    const time1 =
+        new Date(date1).getTime();
 
-    return Math.floor(diff / 86400000);
+    const time2 =
+        new Date(date2).getTime();
+
+    return Math.floor(
+        (time1 - time2) / 86400000
+    );
 }
 
 function formatDays(days) {
-    if (days === 0) return "今日";
-    if (days === 1) return "1日前";
 
-    return `${days}日前`;
+    if (days === 0) {
+        return "同日";
+    }
+
+    if (days === 1) {
+        return "1日";
+    }
+
+    return `${days}日`;
 }
 
 function escapeHtml(text) {
-    const div = document.createElement("div");
+
+    const div =
+        document.createElement("div");
 
     div.textContent = text;
 
     return div.innerHTML;
 }
 
-async function loadChannel() {
-    const apiKey =
-        document.getElementById("apiKey").value.trim();
-
-    const channelId =
-        document.getElementById("channelId").value.trim();
-
-    const result =
-        document.getElementById("result");
-
-    const button =
-        document.getElementById("loadButton");
-
-    if (!apiKey || !channelId) {
-        result.innerHTML = `
-            <div class="error">
-                APIキーとチャンネルIDを入力して
-            </div>
-        `;
-
-        return;
-    }
-
-    button.disabled = true;
-
-    result.innerHTML = `
-        <div class="loading">
-            YouTubeからデータを取得中...
-        </div>
-    `;
-
-    try {
-        const channelData =
-            await apiRequest("channels", {
-                part: "snippet,statistics,contentDetails",
-                id: channelId,
-                key: apiKey
-            });
-
-        if (
-            !channelData.items ||
-            channelData.items.length === 0
-        ) {
-            throw new Error(
-                "チャンネルが見つからない"
-            );
-        }
-
-        const channel =
-            channelData.items[0];
-
-        const uploadsPlaylistId =
-            channel.contentDetails
-                .relatedPlaylists.uploads;
-
-        const playlistData =
-            await apiRequest("playlistItems", {
-                part: "snippet,contentDetails",
-                playlistId: uploadsPlaylistId,
-                maxResults: 50,
-                key: apiKey
-            });
-
-        const videoIds =
-            playlistData.items.map(item =>
-                item.contentDetails.videoId
-            );
-
-        if (videoIds.length === 0) {
-            throw new Error(
-                "動画が見つからない"
-            );
-        }
-
-        const videoData =
-            await apiRequest("videos", {
-                part: "snippet,statistics,contentDetails",
-                id: videoIds.join(","),
-                key: apiKey
-            });
-
-        const videos =
-            videoData.items
-                .filter(video => {
-                    const title =
-                        video.snippet.title.toLowerCase();
-
-                    const description =
-                        video.snippet.description
-                            .toLowerCase();
-
-                    const duration =
-                        video.contentDetails.duration;
-
-                    const isShortTag =
-                        title.includes("#shorts") ||
-                        description.includes("#shorts");
-
-                    const seconds =
-                        parseDuration(duration);
-
-                    const isVeryShort =
-                        seconds <= 60;
-
-                    return (
-                        !isShortTag &&
-                        !isVeryShort
-                    );
-                })
-                .sort((a, b) =>
-                    new Date(b.snippet.publishedAt) -
-                    new Date(a.snippet.publishedAt)
-                )
-                .slice(0, 20);
-
-        renderChannel(channel);
-        renderVideos(videos);
-
-    } catch (error) {
-        result.innerHTML = `
-            <div class="error">
-                <strong>エラー</strong><br>
-                ${escapeHtml(error.message)}
-            </div>
-        `;
-    } finally {
-        button.disabled = false;
-    }
-}
-
 function parseDuration(duration) {
+
     const match =
         duration.match(
             /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
@@ -409,12 +345,223 @@ function parseDuration(duration) {
     );
 }
 
+async function loadChannel() {
+
+    const apiKey =
+        document
+            .getElementById("apiKey")
+            .value
+            .trim();
+
+    const channelId =
+        document
+            .getElementById("channelId")
+            .value
+            .trim();
+
+    const result =
+        document.getElementById("result");
+
+    const button =
+        document.getElementById("loadButton");
+
+    if (!apiKey || !channelId) {
+
+        result.innerHTML = `
+            <div class="error">
+                APIキーとチャンネルIDを入力して
+            </div>
+        `;
+
+        return;
+    }
+
+    button.disabled = true;
+
+    result.innerHTML = `
+        <div class="loading">
+            YouTubeからデータを取得中...
+        </div>
+    `;
+
+    try {
+
+        /*
+         * チャンネル情報取得
+         */
+        const channelData =
+            await apiRequest(
+                "channels",
+                {
+                    part:
+                        "snippet,statistics,contentDetails",
+
+                    id:
+                        channelId,
+
+                    key:
+                        apiKey
+                }
+            );
+
+        if (
+            !channelData.items ||
+            channelData.items.length === 0
+        ) {
+            throw new Error(
+                "チャンネルが見つからない"
+            );
+        }
+
+        const channel =
+            channelData.items[0];
+
+        subscriberCount =
+            Number(
+                channel.statistics
+                    .subscriberCount
+            );
+
+        /*
+         * アップロード動画プレイリスト取得
+         */
+        const uploadsPlaylistId =
+            channel.contentDetails
+                .relatedPlaylists
+                .uploads;
+
+        const playlistData =
+            await apiRequest(
+                "playlistItems",
+                {
+                    part:
+                        "snippet,contentDetails",
+
+                    playlistId:
+                        uploadsPlaylistId,
+
+                    maxResults:
+                        50,
+
+                    key:
+                        apiKey
+                }
+            );
+
+        const videoIds =
+            playlistData.items.map(
+                item =>
+                    item.contentDetails
+                        .videoId
+            );
+
+        if (videoIds.length === 0) {
+            throw new Error(
+                "動画が見つからない"
+            );
+        }
+
+        /*
+         * 動画詳細取得
+         */
+        const videoData =
+            await apiRequest(
+                "videos",
+                {
+                    part:
+                        "snippet,statistics,contentDetails",
+
+                    id:
+                        videoIds.join(","),
+
+                    key:
+                        apiKey
+                }
+            );
+
+        /*
+         * 横動画を取得
+         *
+         * #shortsを除外し、
+         * 60秒以下の動画も除外
+         */
+        videos =
+            videoData.items
+                .filter(video => {
+
+                    const title =
+                        video.snippet.title
+                            .toLowerCase();
+
+                    const description =
+                        video.snippet.description
+                            .toLowerCase();
+
+                    const isShort =
+                        title.includes(
+                            "#shorts"
+                        ) ||
+                        description.includes(
+                            "#shorts"
+                        );
+
+                    const seconds =
+                        parseDuration(
+                            video.contentDetails
+                                .duration
+                        );
+
+                    return (
+                        !isShort &&
+                        seconds > 60
+                    );
+                })
+                .sort((a, b) => {
+
+                    return (
+                        new Date(
+                            b.snippet
+                                .publishedAt
+                        ) -
+
+                        new Date(
+                            a.snippet
+                                .publishedAt
+                        )
+                    );
+                })
+                .slice(0, 20);
+
+        renderChannel(channel);
+        renderVideos();
+        renderChart();
+
+    } catch (error) {
+
+        result.innerHTML = `
+            <div class="error">
+                <strong>エラー</strong><br>
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+        `;
+
+    } finally {
+
+        button.disabled = false;
+    }
+}
+
 function renderChannel(channel) {
+
     const result =
         document.getElementById("result");
 
     result.innerHTML = `
+
         <div class="channel">
+
             <div class="channel-name">
                 ${escapeHtml(
                     channel.snippet.title
@@ -422,14 +569,33 @@ function renderChannel(channel) {
             </div>
 
             <div class="subscribers">
-                チャンネル登録者数：
+
+                現在のチャンネル登録者数：
+                
                 <strong>
                     ${formatNumber(
-                        channel.statistics
-                            .subscriberCount
+                        subscriberCount
                     )}
                 </strong>
+
             </div>
+
+        </div>
+
+        <div class="chart-container">
+
+            <h2>
+                動画ごとの統計
+            </h2>
+
+            <div class="chart-wrapper">
+
+                <canvas
+                    id="videoChart">
+                </canvas>
+
+            </div>
+
         </div>
 
         <div
@@ -439,103 +605,354 @@ function renderChannel(channel) {
     `;
 }
 
-function renderVideos(videos) {
+function renderVideos() {
+
     const list =
-        document.getElementById("videoList");
-
-    if (videos.length === 0) {
-        list.innerHTML = `
-            <div class="error">
-                横動画として取得できる動画が見つからない
-            </div>
-        `;
-
-        return;
-    }
+        document.getElementById(
+            "videoList"
+        );
 
     list.innerHTML =
-        videos.map((video, index) => {
-            const statistics =
-                video.statistics;
+        videos.map(
+            (video, index) => {
 
-            const views =
-                statistics.viewCount || 0;
+                const statistics =
+                    video.statistics;
 
-            const likes =
-                statistics.likeCount || 0;
+                const views =
+                    Number(
+                        statistics
+                            .viewCount ||
+                        0
+                    );
 
-            const publishedAt =
-                video.snippet.publishedAt;
+                const likes =
+                    Number(
+                        statistics
+                            .likeCount ||
+                        0
+                    );
 
-            const days =
-                daysSince(publishedAt);
+                const publishedAt =
+                    video.snippet
+                        .publishedAt;
 
-            const thumbnail =
-                video.snippet.thumbnails.high?.url ||
-                video.snippet.thumbnails.medium?.url ||
-                video.snippet.thumbnails.default.url;
+                let gapText =
+                    "最初の動画";
 
-            return `
-                <div class="video">
+                if (
+                    index <
+                    videos.length - 1
+                ) {
 
-                    <a
-                        href="https://www.youtube.com/watch?v=${video.id}"
-                        target="_blank"
-                        rel="noopener noreferrer">
+                    const previousVideo =
+                        videos[index + 1];
 
-                        <img
-                            class="thumbnail"
-                            src="${thumbnail}"
-                            alt="">
-                    </a>
+                    const gap =
+                        daysBetween(
+                            publishedAt,
+                            previousVideo
+                                .snippet
+                                .publishedAt
+                        );
 
-                    <div>
+                    gapText =
+                        `前の動画から ${formatDays(gap)}`;
+                }
 
-                        <div class="title">
-                            ${index + 1}.
-                            ${escapeHtml(
-                                video.snippet.title
-                            )}
-                        </div>
+                const thumbnail =
+                    video.snippet
+                        .thumbnails
+                        .high?.url ||
+                    video.snippet
+                        .thumbnails
+                        .medium?.url ||
+                    video.snippet
+                        .thumbnails
+                        .default
+                        .url;
 
-                        <div class="info">
+                return `
 
-                            <span>
-                                ▶ 再生
-                                <strong>
-                                    ${formatNumber(
-                                        views
-                                    )}
-                                </strong>
-                            </span>
+                    <div class="video">
 
-                            <span>
-                                👍 高評価
-                                <strong>
-                                    ${formatNumber(
-                                        likes
-                                    )}
-                                </strong>
-                            </span>
+                        <a
+                            href="https://www.youtube.com/watch?v=${video.id}"
+                            target="_blank"
+                            rel="noopener noreferrer">
 
-                            <span>
-                                📅
-                                ${formatDays(days)}
-                            </span>
+                            <img
+                                class="thumbnail"
+                                src="${thumbnail}"
+                                alt="">
+                        </a>
 
-                        </div>
+                        <div>
 
-                        <div class="date">
-                            投稿日：
-                            ${formatDate(
-                                publishedAt
-                            )}
+                            <div class="title">
+
+                                ${index + 1}.
+                                ${escapeHtml(
+                                    video.snippet
+                                        .title
+                                )}
+
+                            </div>
+
+                            <div class="info">
+
+                                <span>
+                                    ▶ 再生
+                                    <strong>
+                                        ${formatNumber(
+                                            views
+                                        )}
+                                    </strong>
+                                </span>
+
+                                <span>
+                                    👍 高評価
+                                    <strong>
+                                        ${formatNumber(
+                                            likes
+                                        )}
+                                    </strong>
+                                </span>
+
+                            </div>
+
+                            <div class="date">
+
+                                投稿日：
+                                ${formatDate(
+                                    publishedAt
+                                )}
+
+                            </div>
+
+                            <div class="gap">
+
+                                ${gapText}
+
+                            </div>
+
                         </div>
 
                     </div>
-                </div>
-            `;
-        }).join("");
+                `;
+            }
+        ).join("");
+}
+
+function renderChart() {
+
+    const canvas =
+        document.getElementById(
+            "videoChart"
+        );
+
+    const labels =
+        videos.map(
+            (video, index) =>
+                `${index + 1}`
+        );
+
+    const viewData =
+        videos.map(
+            video =>
+                Number(
+                    video.statistics
+                        .viewCount ||
+                    0
+                )
+        );
+
+    const likeData =
+        videos.map(
+            video =>
+                Number(
+                    video.statistics
+                        .likeCount ||
+                    0
+                )
+        );
+
+    const subscriberData =
+        videos.map(
+            () =>
+                subscriberCount
+        );
+
+    new Chart(
+        canvas,
+        {
+            data: {
+
+                labels: labels,
+
+                datasets: [
+
+                    {
+                        type: "bar",
+
+                        label:
+                            "再生数",
+
+                        data:
+                            viewData,
+
+                        yAxisID:
+                            "y"
+                    },
+
+                    {
+                        type: "bar",
+
+                        label:
+                            "高評価数",
+
+                        data:
+                            likeData,
+
+                        yAxisID:
+                            "y"
+                    },
+
+                    {
+                        type: "line",
+
+                        label:
+                            "チャンネル登録者数",
+
+                        data:
+                            subscriberData,
+
+                        yAxisID:
+                            "y1",
+
+                        tension:
+                            0.2,
+
+                        pointRadius:
+                            4
+                    }
+
+                ]
+            },
+
+            options: {
+
+                responsive:
+                    true,
+
+                maintainAspectRatio:
+                    false,
+
+                interaction: {
+
+                    mode:
+                        "index",
+
+                    intersect:
+                        false
+                },
+
+                scales: {
+
+                    x: {
+
+                        title: {
+
+                            display:
+                                true,
+
+                            text:
+                                "動画（新しい順）"
+                        }
+                    },
+
+                    y: {
+
+                        beginAtZero:
+                            true,
+
+                        title: {
+
+                            display:
+                                true,
+
+                            text:
+                                "再生数・高評価数"
+                        }
+                    },
+
+                    y1: {
+
+                        position:
+                            "right",
+
+                        beginAtZero:
+                            true,
+
+                        grid: {
+
+                            drawOnChartArea:
+                                false
+                        },
+
+                        title: {
+
+                            display:
+                                true,
+
+                            text:
+                                "チャンネル登録者数"
+                        }
+                    }
+                },
+
+                plugins: {
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            title:
+                                function(context) {
+
+                                    const index =
+                                        context[0]
+                                            .dataIndex;
+
+                                    return (
+                                        videos[index]
+                                            .snippet
+                                            .title
+                                    );
+                                },
+
+                            label:
+                                function(context) {
+
+                                    return (
+                                        `${context.dataset.label}: ` +
+                                        formatNumber(
+                                            context.raw
+                                        )
+                                    );
+                                }
+                        }
+                    },
+
+                    legend: {
+
+                        display:
+                            true
+                    }
+                }
+            }
+        }
+    );
 }
 
 </script>
